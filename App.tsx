@@ -1,14 +1,16 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useStore } from './store';
 import { translations } from './translations';
 import { WizardStep1, WizardStep2, WizardStep3, WizardStep4, WizardStep5, WizardStep6, WizardStep7 } from './components/WizardSteps';
 import { LanguageToggle } from './components/LanguageToggle';
 import { ProgressBar } from './components/ProgressBar';
+import { UpgradeModal } from './components/UpgradeModal';
 
 const App: React.FC = () => {
-  const { step, language } = useStore();
+  const { step, language, setIsPremium } = useStore();
   const t = translations[language];
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const renderStep = () => {
     switch (step) {
@@ -51,12 +53,25 @@ const App: React.FC = () => {
         {/* Pro Banner */}
         {step > 0 && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm">
-             <button className="w-full bg-gradient-to-r from-accent to-orange-400 text-white py-3 px-4 rounded-xl font-bold shadow-lg shadow-orange-200 transform active:scale-95 transition-all text-sm">
+             <button 
+               onClick={() => setUpgradeOpen(true)}
+               className="w-full bg-gradient-to-r from-accent to-orange-400 text-white py-3 px-4 rounded-xl font-bold shadow-lg shadow-orange-200 transform active:scale-95 transition-all text-sm"
+             >
                {t.proBanner}
              </button>
           </div>
         )}
       </div>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        onConfirmUpgrade={() => {
+          setIsPremium(true);
+          setUpgradeOpen(false);
+        }}
+      />
     </div>
   );
 };

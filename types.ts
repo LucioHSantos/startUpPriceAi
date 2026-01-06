@@ -61,6 +61,7 @@ export interface BusinessState {
   language: Language;
   step: number;
   isPro: boolean;
+  isPremium: boolean;
   businessName: string;
   niche: string;
   expenses: Expenses;

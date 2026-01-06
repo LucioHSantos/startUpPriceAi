@@ -4,6 +4,7 @@ import { useStore } from '../store';
 import { translations } from '../translations';
 import { MarkupTier } from '../types';
 import { calculateTotalFixed, calculateCapacityHours, calculatePricing, MARKUP_FACTORS } from '../utils/math';
+import { UpgradeModal } from './UpgradeModal';
 
 // Step 1: Splash
 export const WizardStep1: React.FC = () => {
@@ -52,10 +53,11 @@ export const WizardStep1: React.FC = () => {
 
 // Step 2: Business Setup
 export const WizardStep2: React.FC = () => {
-  const { setStep, language, businessName, niche, setBusinessInfo } = useStore();
+  const { setStep, language, businessName, niche, setBusinessInfo, isPremium, setIsPremium, services } = useStore();
   const t = translations[language];
   const [name, setName] = useState(businessName);
   const [selectedNiche, setSelectedNiche] = useState(niche || '');
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const niches = [
     { id: 'pet', label: t.niches.pet },
@@ -65,7 +67,16 @@ export const WizardStep2: React.FC = () => {
     { id: 'ecommerce', label: t.niches.ecommerce }
   ];
 
+  // Check if user already has a business (has completed services)
+  const hasExistingBusiness = services.length > 0 || businessName !== '';
+
   const handleNext = () => {
+    // If user is not premium and already has a business, show upgrade
+    if (!isPremium && hasExistingBusiness && businessName && businessName !== name) {
+      setUpgradeOpen(true);
+      return;
+    }
+    
     if (name) {
       setBusinessInfo(name, selectedNiche);
       setStep(2);
@@ -108,6 +119,15 @@ export const WizardStep2: React.FC = () => {
         </div>
       </div>
 
+      {/* Limit warning */}
+      {!isPremium && hasExistingBusiness && businessName && (
+        <div className="bg-accent/10 border-2 border-accent/30 p-4 rounded-xl">
+          <p className="text-sm font-bold text-gray-700 text-center">
+            You've reached the free plan limit. Upgrade to Pro to unlock unlimited businesses and products.
+          </p>
+        </div>
+      )}
+
       <button 
         onClick={handleNext}
         disabled={!name}
@@ -115,6 +135,15 @@ export const WizardStep2: React.FC = () => {
       >
         {t.next} →
       </button>
+
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        onConfirmUpgrade={() => {
+          setIsPremium(true);
+          setUpgradeOpen(false);
+        }}
+      />
     </div>
   );
 };
@@ -357,18 +386,27 @@ export const WizardStep5: React.FC = () => {
 
 // Step 6: Services Entry
 export const WizardStep6: React.FC = () => {
-  const { setStep, language, services, addService, expenses, capacity, selectedTier } = useStore();
+  const { setStep, language, services, addService, expenses, capacity, selectedTier, isPremium, setIsPremium } = useStore();
   const t = translations[language];
 
   const [name, setName] = useState('');
   const [varCost, setVarCost] = useState('');
   const [hours, setHours] = useState('');
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const totalFixed = calculateTotalFixed(expenses);
   const totalHours = calculateCapacityHours(capacity);
   const pricing = calculatePricing(totalFixed, totalHours, parseFloat(varCost) || 0, parseFloat(hours) || 0, selectedTier);
 
+  const FREE_LIMIT_SERVICES = 3;
+  const canAddService = isPremium || services.length < FREE_LIMIT_SERVICES;
+
   const handleAdd = () => {
+    if (!canAddService) {
+      setUpgradeOpen(true);
+      return;
+    }
+    
     if (name && varCost && hours) {
       addService({
         id: Math.random().toString(36).substr(2, 9),
@@ -388,6 +426,15 @@ export const WizardStep6: React.FC = () => {
         <h2 className="text-2xl font-bold text-primary">{t.yourServices}</h2>
       </div>
 
+      {/* Limit warning */}
+      {!canAddService && (
+        <div className="bg-accent/10 border-2 border-accent/30 p-4 rounded-xl">
+          <p className="text-sm font-bold text-gray-700 text-center">
+            You've reached the free plan limit. Upgrade to Pro to unlock unlimited businesses and products.
+          </p>
+        </div>
+      )}
+
       <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-2xl space-y-5">
         <div className="space-y-1">
           <label className="text-sm font-bold text-gray-700">{t.serviceName}</label>
@@ -395,6 +442,7 @@ export const WizardStep6: React.FC = () => {
             value={name} onChange={(e) => setName(e.target.value)}
             placeholder="Ex: Consultoria"
             className="w-full p-4 bg-gray-50 rounded-xl outline-none border-2 border-transparent focus:border-primary transition-all"
+            disabled={!canAddService}
           />
         </div>
 
@@ -438,18 +486,31 @@ export const WizardStep6: React.FC = () => {
         <button onClick={() => setStep(4)} className="flex-1 border-2 border-gray-100 text-gray-500 py-4 rounded-2xl font-bold">
           {t.back}
         </button>
-        <button onClick={handleAdd} disabled={!name} className="flex-[2] bg-accent text-white py-4 rounded-2xl font-bold shadow-lg shadow-orange-200 disabled:opacity-50">
+        <button onClick={handleAdd} disabled={!name || !canAddService} className="flex-[2] bg-accent text-white py-4 rounded-2xl font-bold shadow-lg shadow-orange-200 disabled:opacity-50">
           {t.finish} →
         </button>
       </div>
+
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        onConfirmUpgrade={() => {
+          setIsPremium(true);
+          setUpgradeOpen(false);
+        }}
+      />
     </div>
   );
 };
 
 // Step 7: Results
 export const WizardStep7: React.FC = () => {
-  const { language, expenses, capacity, selectedTier, services, reset } = useStore();
+  const { language, expenses, capacity, selectedTier, services, reset, isPremium, setIsPremium } = useStore();
   const t = translations[language];
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  const FREE_LIMIT_SERVICES = 3;
+  const canAddMoreServices = isPremium || services.length < FREE_LIMIT_SERVICES;
 
   // Using the last service or default for the breakdown UI
   const service = services[services.length - 1] || { name: 'New Service', variable_cost: 0, hours_required: 0, markup_tier: selectedTier };
@@ -509,13 +570,41 @@ export const WizardStep7: React.FC = () => {
       </div>
 
       <div className="flex flex-col gap-3">
-        <button onClick={reset} className="w-full bg-primary text-white py-4 rounded-2xl font-bold shadow-lg">
+        <button 
+          onClick={() => {
+            // Allow reset for premium users, or if no business was completed yet
+            if (!isPremium && services.length >= 1) {
+              setUpgradeOpen(true);
+              return;
+            }
+            reset();
+          }} 
+          className="w-full bg-primary text-white py-4 rounded-2xl font-bold shadow-lg"
+        >
           {t.saveBusiness}
         </button>
-        <button onClick={() => useStore.getState().setStep(5)} className="w-full border-2 border-gray-100 text-gray-500 py-4 rounded-2xl font-bold bg-white">
+        <button 
+          onClick={() => {
+            if (!canAddMoreServices) {
+              setUpgradeOpen(true);
+              return;
+            }
+            useStore.getState().setStep(5);
+          }} 
+          className="w-full border-2 border-gray-100 text-gray-500 py-4 rounded-2xl font-bold bg-white"
+        >
           {t.addAnother}
         </button>
       </div>
+
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        onConfirmUpgrade={() => {
+          setIsPremium(true);
+          setUpgradeOpen(false);
+        }}
+      />
     </div>
   );
 };

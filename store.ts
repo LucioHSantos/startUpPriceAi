@@ -12,6 +12,7 @@ interface AppStore extends BusinessState {
   addService: (service: Service) => void;
   removeService: (id: string) => void;
   togglePro: () => void;
+  setIsPremium: (value: boolean) => void;
   reset: () => void;
 }
 
@@ -31,10 +32,18 @@ const initialCapacity: Capacity = {
   productivity: 0,
 };
 
+// Load isPremium from localStorage on initialization
+const getInitialIsPremium = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const stored = localStorage.getItem('startupprice_is_premium');
+  return stored === 'true';
+};
+
 export const useStore = create<AppStore>((set) => ({
   language: 'en',
   step: 0,
   isPro: false,
+  isPremium: getInitialIsPremium(),
   businessName: '',
   niche: '',
   expenses: initialExpenses,
@@ -53,6 +62,12 @@ export const useStore = create<AppStore>((set) => ({
   addService: (service) => set((state) => ({ services: [...state.services, service] })),
   removeService: (id) => set((state) => ({ services: state.services.filter(s => s.id !== id) })),
   togglePro: () => set((state) => ({ isPro: !state.isPro })),
+  setIsPremium: (value) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('startupprice_is_premium', value.toString());
+    }
+    set({ isPremium: value });
+  },
   reset: () => set({
     step: 0,
     businessName: '',
